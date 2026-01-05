@@ -30,7 +30,7 @@ def load_dataset(cache_dir: str = "./data/complex") -> DatasetDict:
     """
     
     base_url = "https://raw.githubusercontent.com/MMU-TDMLab/CompLex/master"
-    splits = ['train', 'test'] # trial is ignored for now
+    splits = ['train', 'trial'] # test has no labels
     tasks = ['single', 'multi']
     
     os.makedirs(cache_dir, exist_ok=True)
@@ -74,7 +74,13 @@ def load_dataset(cache_dir: str = "./data/complex") -> DatasetDict:
         
         # creae
         combined_df = pd.concat(dfs, ignore_index=True)
+
         dataset_dict[split] = Dataset.from_pandas(combined_df, preserve_index=False)
+
+        if split == "trial":
+            dataset_dict["trial"] = dataset_dict["trial"].rename_column("subcorpus", "corpus")
+            # dirty fix to load trial as test
+            dataset_dict["test"] = dataset_dict.pop("trial")
     
     return DatasetDict(dataset_dict)
 
@@ -131,6 +137,7 @@ def tokenize_complex_dataset(
     dataset = dataset.map(tokenize, batched=True)
     dataset = dataset.remove_columns(["id", "corpus", "sentence", "token", "task"])
     dataset["train"] = dataset["train"].rename_column("complexity", "labels") # the trainer expects labels
+    dataset["test"] = dataset["test"].rename_column("complexity", "labels") # the trainer expects labels
     dataset.set_format("torch")
     
     return dataset, tokenizer
