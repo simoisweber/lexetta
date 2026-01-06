@@ -5,7 +5,7 @@ from pathlib import Path
 from transformers import Trainer
 from datasets import DatasetDict
 
-from lca.schema import TrainingConfig, TrainingRun, TrainingTask, Metrics
+from schema import TrainingConfig, TrainingRun, TrainingTask, Metrics
 
 
 def get_trainable_params(model: Any) -> tuple[int, int]:

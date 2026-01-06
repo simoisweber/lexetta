@@ -6,7 +6,7 @@ from peft import LoraConfig, get_peft_model, TaskType
 import numpy as np
 from scipy import stats
 
-from lca.schema import TrainingConfig
+from schema import TrainingConfig
 
 
 def create_base_model(
