@@ -5,7 +5,6 @@ import requests
 import logging
 import math
 
-from transformers import AutoTokenizer 
 from datasets import Dataset, DatasetDict
 
 
@@ -112,7 +111,7 @@ def preprocess_data(dataset: DatasetDict):
 
 def tokenize_complex_dataset(
         dataset: DatasetDict,
-        tokenizer_name: str = "bert-base-uncased",
+        tokenizer,
         max_length: int = 128,
         ):
     """
@@ -122,7 +121,6 @@ def tokenize_complex_dataset(
         [CLS] sentence [SEP] token [SEP]
 
     """
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=True)
 
     def tokenize(batch):
         return tokenizer(
@@ -140,5 +138,5 @@ def tokenize_complex_dataset(
     dataset["test"] = dataset["test"].rename_column("complexity", "labels") # the trainer expects labels
     dataset.set_format("torch")
     
-    return dataset, tokenizer
+    return dataset 
 

@@ -1,8 +1,9 @@
 
 from typing import Any
 
-from transformers import AutoModelForSequenceClassification, Trainer, TrainingArguments
-from peft import LoraConfig, get_peft_model, TaskType
+from transformers import AutoModelForSequenceClassification, Trainer, TrainingArguments, AutoTokenizer
+from peft import LoraConfig, get_peft_model, TaskType, PeftModel
+import torch
 import numpy as np
 from scipy import stats
 
@@ -19,13 +20,15 @@ def create_base_model(
         model_name: Name of the pretrained model
         
     Returns:
-        The base model
+        A tuple of the base model and the tokenizer
     """
     model = AutoModelForSequenceClassification.from_pretrained(
         model_name,
         num_labels=1
     )
-    return model
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    return model, tokenizer
 
 def apply_lora(model: Any, config: TrainingConfig) -> Any:
     """
@@ -98,3 +101,25 @@ def create_trainer_complex(
         eval_dataset=eval_dataset,
         compute_metrics=compute_metrics,
     )
+
+def load_trained(model_dir) -> tuple:
+    """Returns a tuple model, tokenizer"""
+    base_model, tokenizer = create_base_model()
+    model = PeftModel.from_pretrained(model=base_model, model_id=model_dir)
+    return model, tokenizer
+
+def predict_complexity(model, tokenizer, sentence: str, word: str) -> float:
+    inputs = tokenizer(
+        sentence,
+        word,
+        return_tensors="pt",
+        padding="max_length",
+        truncation="only_first",
+        max_length=128,
+    )
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
+    
+    with torch.no_grad():
+        output = model(**inputs)
+    
+    return output.logits.squeeze().item()
