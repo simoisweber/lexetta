@@ -60,7 +60,7 @@ def create_trainer_complex(
     config: TrainingConfig,
     train_dataset: Any,
     eval_dataset: Any,
-    output_dir: str = "./outputs"
+    output_dir: str = None
 ) -> Trainer:
     """
     Create a Trainer instance.

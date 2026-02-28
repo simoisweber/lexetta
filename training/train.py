@@ -86,10 +86,8 @@ def train_model(trainer: Trainer) -> tuple[float, float]:
 def run_single_training(
     config: TrainingConfig,
     dataset: DatasetDict,
-    results_dir: str,
-    results_filename: str,
-    output_dir: str,
-) -> TrainingRun:
+    output_dir: str = None,
+) -> tuple[Trainer, TrainingRun]:
     """
     Run a complete fine-tuning pipeline with a single configuration.
     
@@ -97,27 +95,24 @@ def run_single_training(
         config: Training configuration
         dataset: Pre-loaded dataset
         output_dir: Directory for training outputs
-        results_dir: Directory for saving results
-        results_filename: Filename for results (auto-generated if None)
-        max_length: Maximum sequence length for tokenization
-        
     Returns:
         TrainingRun with all metrics
     """
     print(f"Starting training with config: {config}")
     
     if config.task == TrainingTask.CompLexV1:
-        from lca.CompLex import tokenize_complex_dataset, create_trainer_complex, create_base_model, apply_lora
+        from CompLex import tokenize_complex_dataset, create_trainer_complex, create_base_model, apply_lora
         
-        # Tokenize
-        print("Tokenizing dataset...")
-        tokenized_dataset, tokenizer = tokenize_complex_dataset(dataset, max_length=config.max_input_length)
-    
+   
         # Create model
         print("Creating model with LoRA adapters...")
-        model = create_base_model()
+        model, tokenizer = create_base_model()
         model = apply_lora(model, config)
         trainable, total = get_trainable_params(model)
+
+        # Tokenize
+        print("Tokenizing dataset...")
+        tokenized_dataset = tokenize_complex_dataset(dataset, tokenizer=tokenizer, max_length=config.max_input_length)
         
         # Train
         trainer = create_trainer_complex(
@@ -154,92 +149,5 @@ def run_single_training(
         config=config,
         metrics=metrics,
         version="1"
-    )
-    
-    
-    filepath = Path(results_dir) / results_filename
-    save_results(result, filepath)
-    
-    return result
-
-
-def run_batch_training(
-    configs: list[TrainingConfig],
-    dataset: DatasetDict,
-    results_dir: str,
-    results_filestem: str
-) -> list[TrainingRun]:
-    """
-    Run multiple fine-tuning experiments with different configurations.
-    
-    Args:
-        configs: List of TrainingConfig objects to run
-        results_dir: Directory for saving results
-        results_filestem: Result i is saved in i_<results_filestem>
-    Returns:
-        List of TrainingRun results
-    """
-    results = []
-    
-    for i, config in enumerate(configs):
-        print(f"\n{'='*60}")
-        print(f"Experiment {i+1}/{len(configs)}")
-        print(f"{'='*60}")
-        
-        result = run_single_training(
-            config=config,
-            dataset=dataset,
-            output_dir=f"./lora-output",
-            results_dir=results_dir,
-            results_filename=f"{i+1}_{results_filestem}"
-        )
-        results.append(result)
-    
-    print("Batch training complete!")
-    return results
-
-
-def create_config_grid(
-    ranks: list[int],
-    alphas: list[int],
-    target_modules: list[str],
-    max_input_lengths: list[int], 
-    learning_rates: list[float],
-    batch_sizes: list[int],
-    num_epochs: int,
-    task: TrainingTask
-) -> list[TrainingConfig]:
-    """
-    Create a grid of configurations for batch training.
-    
-    Args:
-        ranks: List of LoRA ranks to try
-        alphas: List of alpha values (defaults to 2x rank for each)
-        learning_rates: List of learning rates to try
-        batch_sizes: List of batch sizes to try
-        num_epochs: Number of epochs for all configs
-        target_modules: Which modules to apply LoRA to
-        
-    Returns:
-        List of TrainingConfig objects
-    """
-    configs = []
-    
-    for rank in ranks:
-        for alpha in alphas:
-            for ml in max_input_lengths:
-                for lr in learning_rates:
-                    for bs in batch_sizes:
-                        config = TrainingConfig(
-                            task=task,
-                            rank=rank,
-                            alpha=alpha,
-                            target_modules=target_modules,
-                            max_input_length=ml,
-                            learning_rate=lr,
-                            batch_size=bs,
-                            num_epochs=num_epochs,
-                        )
-                        configs.append(config)
-        
-    return configs
+    )    
+    return trainer, result
