@@ -11,21 +11,15 @@ from datasets import Dataset, DatasetDict
 def load_dataset(cache_dir: str = "./data/complex") -> DatasetDict:
     """
     Load the CompLex lexical complexity prediction dataset as a Hugging Face DatasetDict.
-    
-    This dataset is from: https://github.com/MMU-TDMLab/CompLex
-    Paper: "CompLex — A New Corpus for Lexical Complexity Prediction from Likert Scale Data"
-    
-    Parameters
-    ----------
-    cache_dir : str
-        Directory to save/load the dataset files. Defaults to "./data/complex".
-        
-    Returns
-    -------
-    DatasetDict
-        A DatasetDict with keys: 'train', 'trial', 'test'
-        Each split contains both single word and MWE data combined,
-        with an additional 'task' column ('single' or 'multi').
+
+    Downloads from https://github.com/MMU-TDMLab/CompLex if not already cached.
+
+    Params:
+        cache_dir: Directory to save/load the dataset files
+
+    Returns:
+        DatasetDict with keys 'train' and 'test', each combining single-word and MWE
+        data with an additional 'task' column ('single' or 'multi')
     """
     
     base_url = "https://raw.githubusercontent.com/MMU-TDMLab/CompLex/master"
@@ -84,7 +78,15 @@ def load_dataset(cache_dir: str = "./data/complex") -> DatasetDict:
     return DatasetDict(dataset_dict)
 
 def preprocess_data(dataset: DatasetDict):
+    """
+    Filter out rows with missing values or invalid complexity labels.
 
+    Params:
+        dataset: DatasetDict with 'train' and 'test' splits
+
+    Returns:
+        Filtered DatasetDict with only valid rows
+    """
     def no_missing(row):
         for v in row.values():
             if v is None:
@@ -115,11 +117,17 @@ def tokenize_complex_dataset(
         max_length: int = 128,
         ):
     """
-    Tokenize the CompLex 1.0 dataset
+    Tokenize the CompLex dataset for sequence classification.
 
-    The CompLex dataset is encoded as follows: 
-        [CLS] sentence [SEP] token [SEP]
+    Encodes each example as [CLS] sentence [SEP] token [SEP].
 
+    Params:
+        dataset: DatasetDict with 'train' and 'test' splits
+        tokenizer: Tokenizer to use
+        max_length: Maximum token sequence length
+
+    Returns:
+        Tokenized DatasetDict formatted as torch tensors
     """
 
     def tokenize(batch):

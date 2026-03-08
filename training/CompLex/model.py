@@ -4,7 +4,6 @@ from typing import Any
 from transformers import AutoModelForSequenceClassification, Trainer, TrainingArguments, AutoTokenizer
 from peft import LoraConfig, get_peft_model, TaskType, PeftModel
 import torch
-import numpy as np
 from scipy import stats
 
 from schema import TrainingConfig
@@ -15,10 +14,10 @@ def create_base_model(
 ) -> Any:
     """
     Create the base model.
-    
-    Args:
+
+    Params:
         model_name: Name of the pretrained model
-        
+
     Returns:
         A tuple of the base model and the tokenizer
     """
@@ -33,12 +32,11 @@ def create_base_model(
 def apply_lora(model: Any, config: TrainingConfig) -> Any:
     """
     Apply LoRA adapters to the model.
-    
-    Args:
+
+    Params:
         model: The base model
         config: Training configuration with LoRA parameters
-        lora_dropout: Dropout rate for LoRA layers
-        
+
     Returns:
         Model with LoRA adapters
     """
@@ -64,14 +62,14 @@ def create_trainer_complex(
 ) -> Trainer:
     """
     Create a Trainer instance.
-    
-    Args:
+
+    Params:
         model: The model to train
         config: Training configuration
         train_dataset: Training dataset
         eval_dataset: Evaluation dataset
         output_dir: Directory for outputs
-        
+
     Returns:
         Configured Trainer instance
     """
@@ -103,12 +101,32 @@ def create_trainer_complex(
     )
 
 def load_trained(model_dir) -> tuple:
-    """Returns a tuple model, tokenizer"""
+    """
+    Load a trained model and its tokenizer from a directory.
+
+    Params:
+        model_dir: Path to the saved PEFT model directory
+
+    Returns:
+        A tuple of the model and the tokenizer
+    """
     base_model, tokenizer = create_base_model()
     model = PeftModel.from_pretrained(model=base_model, model_id=model_dir)
     return model, tokenizer
 
 def predict_complexity(model, tokenizer, sentence: str, word: str) -> float:
+    """
+    Predict the lexical complexity of a word in context.
+
+    Params:
+        model: The trained model
+        tokenizer: The tokenizer
+        sentence: The sentence containing the word
+        word: The target word to assess
+
+    Returns:
+        Predicted complexity score as a float
+    """
     inputs = tokenizer(
         sentence,
         word,
