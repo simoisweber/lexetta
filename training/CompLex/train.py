@@ -5,7 +5,8 @@ from pathlib import Path
 from transformers import Trainer
 from datasets import DatasetDict
 
-from schema import TrainingConfig, TrainingRun, TrainingTask, Metrics
+from CompLex.schema import TrainingConfig, TrainingRun, Metrics
+from CompLex import tokenize_complex_dataset, create_trainer_complex, create_base_model, apply_lora
 
 
 def get_trainable_params(model: Any) -> tuple[int, int]:
@@ -99,32 +100,26 @@ def run_single_training(
         TrainingRun with all metrics
     """
     print(f"Starting training with config: {config}")
-    
-    if config.task == TrainingTask.CompLexV1:
-        from CompLex import tokenize_complex_dataset, create_trainer_complex, create_base_model, apply_lora
-        
-   
-        # Create model
-        print("Creating model with LoRA adapters...")
-        model, tokenizer = create_base_model()
-        model = apply_lora(model, config)
-        trainable, total = get_trainable_params(model)
 
-        # Tokenize
-        print("Tokenizing dataset...")
-        tokenized_dataset = tokenize_complex_dataset(dataset, tokenizer=tokenizer, max_length=config.max_input_length)
-        
-        # Train
-        trainer = create_trainer_complex(
-            model=model,
-            config=config,
-            train_dataset=tokenized_dataset["train"],
-            eval_dataset=tokenized_dataset["test"],
-            output_dir=output_dir
-        )
-    else:
-        raise NotImplementedError(f"Task {config.task} is unknown")
- 
+    # Create model
+    print("Creating model with LoRA adapters...")
+    model, tokenizer = create_base_model()
+    model = apply_lora(model, config)
+    trainable, total = get_trainable_params(model)
+
+    # Tokenize
+    print("Tokenizing dataset...")
+    tokenized_dataset = tokenize_complex_dataset(dataset, tokenizer=tokenizer, max_length=config.max_input_length)
+    
+    # Train
+    trainer = create_trainer_complex(
+        model=model,
+        config=config,
+        train_dataset=tokenized_dataset["train"],
+        eval_dataset=tokenized_dataset["test"],
+        output_dir=output_dir
+    )
+
     print("Training...")    
     # evaluate once at the start for a baseline
     pre_train_eval = trainer.evaluate()

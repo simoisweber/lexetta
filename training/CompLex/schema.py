@@ -2,12 +2,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 from enum import Enum
 
-class TrainingTask(Enum):
-    CompLexV1 = 1
-
 class TrainingConfig(BaseModel):
-    task: TrainingTask 
-
     rank: int # lora rank (higher rank -> higher parameter count)
     alpha: int # precision (no effect on parameter count)
     target_modules: list[str] # which parts of the llm we want to fine tune (query, key, value, ...)
