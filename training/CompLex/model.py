@@ -6,7 +6,7 @@ from peft import LoraConfig, get_peft_model, TaskType, PeftModel
 import torch
 from scipy import stats
 
-from schema import TrainingConfig
+from CompLex.schema import TrainingConfig
 
 
 def create_base_model(
