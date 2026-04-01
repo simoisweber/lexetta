@@ -1,1 +1,1 @@
-from CompLexPerAnnotator.data import load_dataset
+from CompLexPerAnnotator.data import load_dataset, preprocess_data

@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import requests
 import logging
+import math
 
 from datasets import Dataset, DatasetDict
 
@@ -88,11 +89,33 @@ def load_dataset(cache_dir: str = "./data/per_annotator", test_size: float = 0.2
         "test": Dataset.from_pandas(test_df, preserve_index=False),
     })
 
+def preprocess_data(dataset: DatasetDict):
+    """
+    Filter out rows with missing values or invalid complexity labels.
 
-def save(df, path):
-    df.to_csv(path, index=False)
-    check = pd.read_csv(path)
-    assert check.shape == df.shape
-    print(f"\nSaved to {path} — {df.shape[0]:,} rows x {df.shape[1]} columns")
+    Params:
+        dataset: DatasetDict with 'train' and 'test' splits
 
+    Returns:
+        Filtered DatasetDict with only valid rows
+    """
+    def no_missing(row):
+        for v in row.values():
+            if v is None:
+                return False
+            if isinstance(v, float) and math.isnan(v):
+                return False
+            if isinstance(v, str) and v.strip() == "":
+                return False
+        return True
+
+    # filter out rows that contain any empty value
+    train = dataset["train"].filter(
+        lambda row: no_missing(row) 
+    )
+   # filter out rows that contain any empty value
+    test = dataset["test"].filter(
+        lambda row: no_missing(row) 
+    )
+    return DatasetDict(dict(train=train, test=test)) 
 
