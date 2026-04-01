@@ -46,7 +46,7 @@ def map_labels(df):
     if unmapped:
         logging.warning(f"{unmapped:,} rows had unmapped labels and will be dropped")
     df = df.dropna().reset_index(drop=True)
-    df["complexity"] = df["complexity"].astype(int)
+    df["complexity"] = df["complexity"].astype(int) / 4.0
     logging.info(f"Rows after label mapping: {len(df):,} ({before - len(df):,} dropped)")
     return df
 
@@ -154,7 +154,7 @@ def tokenize_per_annotator_dataset(
         user_history_str = ""
         for sample, score in user_history:
             context, token = sample
-            score_str = LABEL_NAMES[score]
+            score_str = LABEL_NAMES[round(score*4)]
             user_history_str += f"{token}: {score_str}, "
         user_history_str = user_history_str.removesuffix(", ")
 
