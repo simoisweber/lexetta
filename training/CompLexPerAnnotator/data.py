@@ -3,8 +3,10 @@ import os
 import requests
 import logging
 import math
-
 from datasets import Dataset, DatasetDict
+from transformers import PreTrainedTokenizerBase
+
+from CompLexPerAnnotator.retriever import Retriever
 
 KEEP = {
     "HITId": "task_id",
@@ -22,6 +24,7 @@ LABEL_MAP = {
     "Difficult": 3,
     "Very Difficult": 4,
 }
+LABEL_NAMES = {v: k for k, v in LABEL_MAP.items()} # inverted
 
 COLUMNS = ["HITId","HITTypeId","Title","Description","Keywords","Reward","CreationTime","MaxAssignments","RequesterAnnotation","AssignmentDurationInSeconds","AutoApprovalDelayInSeconds","Expiration","NumberOfSimilarHITs","LifetimeInSeconds","AssignmentId","WorkerId","AssignmentStatus","AcceptTime","SubmitTime","AutoApprovalTime","ApprovalTime","RejectionTime","RequesterFeedback","WorkTimeInSeconds","LifetimeApprovalRate","Last30DaysApprovalRate","Last7DaysApprovalRate","Input.corpus_id","Input.file_id","Input.token_id","Input.sentence","Input.token","Input.begin","Input.end","Answer.sentiment.label","Approve","Reject"]
 
@@ -35,7 +38,6 @@ def load(path):
 def select_columns(raw):
     df = raw[list(KEEP.keys())].rename(columns=KEEP).copy()
     return df
-
 
 def map_labels(df):
     before = len(df)
@@ -92,6 +94,7 @@ def load_dataset(cache_dir: str = "./data/per_annotator", test_size: float = 0.2
 def preprocess_data(dataset: DatasetDict):
     """
     Filter out rows with missing values or invalid complexity labels.
+    Filter out rows in the test set with too little user history
 
     Params:
         dataset: DatasetDict with 'train' and 'test' splits
@@ -110,12 +113,88 @@ def preprocess_data(dataset: DatasetDict):
         return True
 
     # filter out rows that contain any empty value
-    train = dataset["train"].filter(
-        lambda row: no_missing(row) 
-    )
-   # filter out rows that contain any empty value
-    test = dataset["test"].filter(
-        lambda row: no_missing(row) 
-    )
-    return DatasetDict(dict(train=train, test=test)) 
+    train = dataset["train"].filter(lambda row: no_missing(row))
+    test = dataset["test"].filter(lambda row: no_missing(row))
 
+    # drop test annotators with fewer than 10 training examples
+    train_counts = {}
+    for row in train:
+        train_counts[row["annotator_id"]] = train_counts.get(row["annotator_id"], 0) + 1
+    test = test.filter(lambda row: train_counts.get(row["annotator_id"], 0) >= 10)
+
+    return DatasetDict(dict(train=train, test=test))
+
+def tokenize_per_annotator_dataset(
+        dataset: DatasetDict,
+        tokenizer: PreTrainedTokenizerBase,
+        retriever_map: dict[str, Retriever],
+        user_history_length: int = 5
+    ):
+    """
+    Tokenize the CompLex dataset for sequence classification.
+
+    Encodes each example as [CLS] user history [SEP] sentence [SEP] token [SEP].
+
+    Note: the user history is currently encoded as follows <token>: <score>, where score is one of
+    Very Easy, Easy, ..., Very Difficult
+
+    Params:
+        dataset: DatasetDict with 'train' and 'test' splits
+        tokenizer: Tokenizer to use
+        retriever_map: mapping of annotator_id -> Retriever. The retriever is used to select the relevant items from the user history
+        user_history_length: number of items of the user history that should be inside the prompt
+    Returns:
+        Tokenized DatasetDict formatted as torch tensors
+    """
+
+    def tokenize(row):
+
+        retriever = retriever_map[row["annotator_id"]]
+        user_history = retriever(sample=(row["sentence"], row["token"]), n=user_history_length)
+        user_history_str = ""
+        for sample, score in user_history:
+            context, token = sample
+            score_str = LABEL_NAMES[score]
+            user_history_str += f"{token}: {score_str}, "
+        user_history_str = user_history_str.removesuffix(", ")
+
+        context = row["sentence"]
+        token = row["token"]
+
+        return tokenizer(
+            user_history_str,
+            f"{context} {token}",
+            padding="max_length",
+            truncation="only_first", 
+            max_length=512,
+            return_token_type_ids=True,
+        )
+    
+    dataset = dataset.map(tokenize, batched=False)
+    dataset = dataset.remove_columns(["annotator_id", "task_id", "corpus", "sentence", "token"])
+    dataset["train"] = dataset["train"].rename_column("complexity", "labels") # the trainer expects labels
+    dataset["test"] = dataset["test"].rename_column("complexity", "labels") # the trainer expects labels
+    dataset.set_format("torch")
+    
+    return dataset 
+
+
+def get_user_histories(dataset: DatasetDict) -> dict[str, list[tuple]]:
+    """
+    Build a per-annotator history from the dataset.
+
+    Note: it only uses the train split to construct the user history to avoid leaking tests 
+    
+    Params:
+        dataset: DatasetDict with 'train' and 'test' splits
+
+    Returns:
+        Dict mapping annotator_id -> list of ((sentence, token), complexity) tuples
+    """
+    history: dict[str, list[tuple]] = {}
+    for row in dataset["train"]:
+        aid = row["annotator_id"]
+        if aid not in history:
+            history[aid] = []
+        history[aid].append(((row["sentence"], row["token"]), row["complexity"]))
+    return history
