@@ -20,4 +20,5 @@ class RandomRetriever:
         self.rng = np.random.default_rng(seed)
 
     def __call__(self, sample: tuple, n: int):
-        return self.rng.choice(self.history, size=n, replace=False).tolist()
+        indices = self.rng.choice(len(self.history), size=min(n, len(self.history)), replace=False)
+        return [self.history[i] for i in indices]
