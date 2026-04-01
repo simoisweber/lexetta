@@ -22,16 +22,17 @@ LABEL_MAP = {
     "Very Difficult": 4,
 }
 
+COLUMNS = ["HITId","HITTypeId","Title","Description","Keywords","Reward","CreationTime","MaxAssignments","RequesterAnnotation","AssignmentDurationInSeconds","AutoApprovalDelayInSeconds","Expiration","NumberOfSimilarHITs","LifetimeInSeconds","AssignmentId","WorkerId","AssignmentStatus","AcceptTime","SubmitTime","AutoApprovalTime","ApprovalTime","RejectionTime","RequesterFeedback","WorkTimeInSeconds","LifetimeApprovalRate","Last30DaysApprovalRate","Last7DaysApprovalRate","Input.corpus_id","Input.file_id","Input.token_id","Input.sentence","Input.token","Input.begin","Input.end","Answer.sentiment.label","Approve","Reject"]
+
 
 def load(path):
-    raw = pd.read_csv(path, low_memory=False)
-    print(f"Loaded {len(raw):,} rows from {path}")
+    raw = pd.read_csv(path, names=COLUMNS, low_memory=False)
+    logging.info(f"Loaded {len(raw):,} rows from {path}")
     return raw
 
 
 def select_columns(raw):
     df = raw[list(KEEP.keys())].rename(columns=KEEP).copy()
-    print(f"Selected {len(df.columns)} columns: {list(df.columns)}")
     return df
 
 
@@ -40,10 +41,10 @@ def map_labels(df):
     df["complexity"] = df["complexity"].map(LABEL_MAP)
     unmapped = df["complexity"].isna().sum()
     if unmapped:
-        print(f"Warning: {unmapped:,} rows had unmapped labels and will be dropped")
+        logging.warning(f"{unmapped:,} rows had unmapped labels and will be dropped")
     df = df.dropna().reset_index(drop=True)
     df["complexity"] = df["complexity"].astype(int)
-    print(f"Rows after label mapping: {len(df):,} ({before - len(df):,} dropped)")
+    logging.info(f"Rows after label mapping: {len(df):,} ({before - len(df):,} dropped)")
     return df
 
 
