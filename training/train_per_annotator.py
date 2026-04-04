@@ -6,14 +6,23 @@ from CompLexPerAnnotator import load_dataset, preprocess_data, run_single_traini
 
 
 if len(sys.argv) != 3:
-    print(f"Usage: {sys.argv[0]} <config.json> <output.json>")
+    print(f"Usage: {sys.argv[0]} <config.json> <run_name>")
     sys.exit(1)
 
 config_path = Path(sys.argv[1])
-output_path = Path(sys.argv[2])
+run_name = sys.argv[2]
 
-with open(config_path) as f:
-    config = TrainingConfig.model_validate(json.load(f))
+with open(config_path, "r") as f:
+    config = TrainingConfig.model_validate_json(f.read())
+
+output_dir = Path("outputs") / run_name
+if output_dir.exists():
+    print(f"Error: output directory already exists: {output_dir}")
+    sys.exit(1)
+output_dir.mkdir(parents=True)
+
+with open(output_dir / "config.json", "w") as f:
+    f.write(config.model_dump_json(indent=4))
 
 data = load_dataset()
 data = preprocess_data(data)
@@ -21,7 +30,7 @@ data = preprocess_data(data)
 trainer, run = run_single_training(
     config=config,
     dataset=data,
-    output_dir=None
+    output_dir=str(output_dir / "checkpoints"),
 )
 
 print(f"Training time:    {run.metrics.train_time_s:.1f}s")
@@ -30,4 +39,6 @@ print(f"Trainable params: {run.metrics.params_trainable:,} / {run.metrics.params
 print(f"Train loss:       {run.metrics.final_train_loss:.4f}")
 print(f"Test loss:        {run.metrics.final_test_loss:.4f}")
 
-save_results(run, output_path)
+save_results(run, output_dir / "result.json")
+trainer.save_model(str(output_dir / "model"))
+print(f"Model saved to {output_dir / 'model'}")
