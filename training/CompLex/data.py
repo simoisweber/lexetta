@@ -2,7 +2,6 @@
 import pandas as pd
 import os
 import requests
-import logging
 import math
 
 from datasets import Dataset, DatasetDict
@@ -36,7 +35,7 @@ def load_dataset(cache_dir: str = "./data/complex") -> DatasetDict:
             local_path = os.path.join(cache_dir, filename)
 
             if not os.path.exists(local_path):
-                logging.info(f"Downloading {filename}")
+                print(f"Downloading {filename}")
                 url = f"{base_url}/{split}/{filename}"
                 response = requests.get(url)
                 if not response.ok:
@@ -58,7 +57,7 @@ def load_dataset(cache_dir: str = "./data/complex") -> DatasetDict:
             try:
                 df = pd.read_csv(local_path, sep="\t")
             except Exception as e:
-                logging.error(f"Failed to load {filename}: {e} ")
+                print(f"Failed to load {filename}: {e} ")
             
             df.columns = [col.lower().strip() for col in df.columns]
             df['task'] = task

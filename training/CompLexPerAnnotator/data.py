@@ -1,7 +1,6 @@
 import pandas as pd
 import os
 import requests
-import logging
 import math
 from datasets import Dataset, DatasetDict
 from transformers import PreTrainedTokenizerBase
@@ -31,7 +30,7 @@ COLUMNS = ["HITId","HITTypeId","Title","Description","Keywords","Reward","Creati
 
 def load(path):
     raw = pd.read_csv(path, names=COLUMNS, low_memory=False)
-    logging.info(f"Loaded {len(raw):,} rows from {path}")
+    print(f"Loaded {len(raw):,} rows from {path}")
     return raw
 
 
@@ -44,10 +43,10 @@ def map_labels(df):
     df["complexity"] = df["complexity"].map(LABEL_MAP)
     unmapped = df["complexity"].isna().sum()
     if unmapped:
-        logging.warning(f"{unmapped:,} rows had unmapped labels and will be dropped")
+        print(f"{unmapped:,} rows had unmapped labels and will be dropped")
     df = df.dropna().reset_index(drop=True)
     df["complexity"] = df["complexity"].astype(int) / 4.0
-    logging.info(f"Rows after label mapping: {len(df):,} ({before - len(df):,} dropped)")
+    print(f"Rows after label mapping: {len(df):,} ({before - len(df):,} dropped)")
     return df
 
 
@@ -71,7 +70,7 @@ def load_dataset(cache_dir: str = "./data/per_annotator", test_size: float = 0.2
     os.makedirs(cache_dir, exist_ok=True)
 
     if not os.path.exists(local_path):
-        logging.info("Downloading per-annotator data")
+        print("Downloading per-annotator data")
         response = requests.get(url)
         if not response.ok:
             raise RuntimeError(f"Failed to download per-annotator data: {response.status_code}")
