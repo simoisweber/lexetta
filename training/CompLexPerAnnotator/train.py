@@ -106,12 +106,14 @@ def run_single_training(
     model, tokenizer = create_base_model()
     model = apply_lora(model, config)
     trainable, total = get_trainable_params(model)
+    print(f"Trainable params: {trainable:,} / {total:,} ({100 * trainable / total:.2f}%)")
 
     # Create Retriever for each annotator
     retriever_map = {}
     user_histories = get_user_histories(dataset)
     for aid, history in user_histories.items():
         retriever_map[aid] = get_retriever(retriever_type=config.retriever_type, history=history)
+    print(f"Built {config.retriever_type.name} retrievers for {len(retriever_map)} annotators")
 
     # Tokenize
     print("Tokenizing dataset...")
@@ -126,14 +128,17 @@ def run_single_training(
         output_dir=output_dir
     )
 
-    print("Training...")    
-    # evaluate once at the start for a baseline
+    print("Evaluating baseline (pre-train)...")
     pre_train_eval = trainer.evaluate()
-    # start the actual training
+    print(f"Baseline eval loss: {pre_train_eval['eval_loss']:.4f}")
+
+    print("Training...")
     train_time, peak_vram = train_model(trainer)
-        
+    print(f"Training done in {train_time:.1f}s, peak VRAM: {peak_vram:.0f} MB")
+
     # Extract metrics
     final_train_loss, final_eval_loss = extract_losses(trainer)
+    print(f"Final train loss: {final_train_loss:.4f}, final eval loss: {final_eval_loss:.4f}")
 
     # Create result object
     metrics = Metrics(
