@@ -2,12 +2,16 @@ from typing import Literal
 from pydantic import BaseModel, Field
 from enum import Enum
 
+class RetrieverType(Enum):
+    RANDOM = 1
+
 class TrainingConfig(BaseModel):
     rank: int # lora rank (higher rank -> higher parameter count)
     alpha: int # precision (no effect on parameter count)
     target_modules: list[str] # which parts of the llm we want to fine tune (query, key, value, ...)
     lora_dropout: float
     
+    retriever_type: RetrieverType
     max_input_length: int # maximum number of tokens as input
     num_epochs: int
     learning_rate: float
