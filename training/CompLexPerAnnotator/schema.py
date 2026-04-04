@@ -1,8 +1,8 @@
 from typing import Literal
 from pydantic import BaseModel, Field
-from enum import Enum
+from enum import IntEnum
 
-class RetrieverType(Enum):
+class RetrieverType(IntEnum):
     RANDOM = 1
 
 class TrainingConfig(BaseModel):
@@ -12,7 +12,7 @@ class TrainingConfig(BaseModel):
     lora_dropout: float
     
     retriever_type: RetrieverType
-    max_input_length: int # maximum number of tokens as input
+    user_history_length: int # maximum number of tokens as input
     num_epochs: int
     learning_rate: float
     batch_size: int # batch size during training, higher values allow higher learning rates but also increase vram usage
