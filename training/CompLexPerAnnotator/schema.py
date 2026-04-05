@@ -15,6 +15,8 @@ class TrainingConfig(BaseModel):
     
     retriever_type: RetrieverType
     user_history_length: int # maximum number of tokens as input
+    test_split: float # fraction of data to use for testing (e.g. 0.2 = 20%)
+    seed: int # random seed for reproducible train/test splits
     num_epochs: int
     learning_rate: float
     batch_size: int # batch size during training, higher values allow higher learning rates but also increase vram usage

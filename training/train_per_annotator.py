@@ -24,7 +24,7 @@ output_dir.mkdir(parents=True)
 with open(output_dir / "config.json", "w") as f:
     f.write(config.model_dump_json(indent=4))
 
-data = load_dataset()
+data = load_dataset(test_size=config.test_split, seed=config.seed)
 data = preprocess_data(data)
 
 trainer, run = run_single_training(
