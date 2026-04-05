@@ -128,10 +128,6 @@ def run_single_training(
         output_dir=output_dir
     )
 
-    print("Evaluating baseline (pre-train)...")
-    pre_train_eval = trainer.evaluate()
-    print(f"Baseline eval loss: {pre_train_eval['eval_loss']:.4f}")
-
     print("Training...")
     train_time, peak_vram = train_model(trainer)
     print(f"Training done in {train_time:.1f}s, peak VRAM: {peak_vram:.0f} MB")
@@ -148,7 +144,7 @@ def run_single_training(
         params_total=total,
         final_test_loss=final_eval_loss,
         final_train_loss=final_train_loss,
-        logs=[pre_train_eval] + trainer.state.log_history
+        logs=trainer.state.log_history
     )
     
     result = TrainingRun(
