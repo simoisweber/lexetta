@@ -151,10 +151,9 @@ def tokenize_per_annotator_dataset(
         retriever = retriever_map[row["annotator_id"]]
         user_history = retriever(sample=(row["sentence"], row["token"]), n=user_history_length)
         user_history_str = ""
-        for sample, score in user_history:
-            context, token = sample
-            score_str = LABEL_NAMES[round(score*4)]
-            user_history_str += f"{token}: {score_str}, "
+        for item in user_history:
+            score_str = LABEL_NAMES[round(item["complexity"] * 4)]
+            user_history_str += f"{item['token']}: {score_str}, "
         user_history_str = user_history_str.removesuffix(", ")
 
         context = row["sentence"]
@@ -178,22 +177,22 @@ def tokenize_per_annotator_dataset(
     return dataset 
 
 
-def get_user_histories(dataset: DatasetDict) -> dict[str, list[tuple]]:
+def get_user_histories(dataset: DatasetDict) -> dict[str, list[dict]]:
     """
     Build a per-annotator history from the dataset.
 
-    Note: it only uses the train split to construct the user history to avoid leaking tests 
-    
+    Note: it only uses the train split to construct the user history to avoid leaking tests
+
     Params:
         dataset: DatasetDict with 'train' and 'test' splits
 
     Returns:
-        Dict mapping annotator_id -> list of ((sentence, token), complexity) tuples
+        Dict mapping annotator_id -> list of row dicts (keys: task_id, annotator_id, corpus, sentence, token, complexity)
     """
-    history: dict[str, list[tuple]] = {}
+    history: dict[str, list[dict]] = {}
     for row in dataset["train"]:
         aid = row["annotator_id"]
         if aid not in history:
             history[aid] = []
-        history[aid].append(((row["sentence"], row["token"]), row["complexity"]))
+        history[aid].append(dict(row))
     return history

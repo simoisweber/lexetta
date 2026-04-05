@@ -12,7 +12,7 @@ class Retriever(Protocol):
             n: number of items to return
         
         Returns:
-            Returns a list of tuples (sample, score) of length n 
+            Returns a list of row dicts of length n
         """
 
 class RandomRetriever:
@@ -30,7 +30,7 @@ class WordFrequencyRetriever:
         self.history = history
         self.lang = lang
         # history items: ((sentence, token), complexity)
-        self._freqs = [zipf_frequency(item[0][1], lang) for item in history]
+        self._freqs = [zipf_frequency(item["token"], lang) for item in history]
 
     def __call__(self, sample: tuple, n: int) -> list:
         query_freq = zipf_frequency(sample[1], self.lang)
@@ -39,3 +39,4 @@ class WordFrequencyRetriever:
             key=lambda i: abs(self._freqs[i] - query_freq),
         )
         return [self.history[i] for i in ranked[:min(n, len(self.history))]]
+    
