@@ -21,8 +21,9 @@ class RandomRetriever:
         self.rng = np.random.default_rng(seed)
 
     def __call__(self, sample: dict, n: int) -> list:
-        indices = self.rng.choice(len(self.history), size=min(n, len(self.history)), replace=False)
-        return [self.history[i] for i in indices]
+        pool = [item for item in self.history if item["task_id"] != sample["task_id"]]
+        indices = self.rng.choice(len(pool), size=min(n, len(pool)), replace=False)
+        return [pool[i] for i in indices]
 
 
 class WordFrequencyRetriever:
@@ -33,11 +34,9 @@ class WordFrequencyRetriever:
 
     def __call__(self, sample: dict, n: int) -> list:
         query_freq = zipf_frequency(sample["token"], self.lang)
-        ranked = sorted(
-            range(len(self.history)),
-            key=lambda i: abs(self._freqs[i] - query_freq),
-        )
-        return [self.history[i] for i in ranked[:min(n, len(self.history))]]
+        pool = [(item, freq) for item, freq in zip(self.history, self._freqs) if item["task_id"] != sample["task_id"]]
+        ranked = sorted(pool, key=lambda t: abs(t[1] - query_freq))
+        return [item for item, _ in ranked[:min(n, len(ranked))]]
 
 class CorpusRetriever:
     def __init__(self, history: list, seed: int = None):
@@ -45,7 +44,6 @@ class CorpusRetriever:
         self.rng = np.random.default_rng(seed)
 
     def __call__(self, sample: dict, n: int) -> list:
-        same_corpus_history = [item for item in self.history if item["corpus"] == sample["corpus"]]
-        indices = self.rng.choice(len(same_corpus_history), size=min(n, len(same_corpus_history)), replace=False)
-        return [same_corpus_history[i] for i in indices]
-
+        pool = [item for item in self.history if item["corpus"] == sample["corpus"] and item["task_id"] != sample["task_id"]]
+        indices = self.rng.choice(len(pool), size=min(n, len(pool)), replace=False)
+        return [pool[i] for i in indices]
