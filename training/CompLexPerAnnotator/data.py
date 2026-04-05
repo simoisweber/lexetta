@@ -149,7 +149,7 @@ def tokenize_per_annotator_dataset(
     def tokenize(row):
 
         retriever = retriever_map[row["annotator_id"]]
-        user_history = retriever(sample=(row["sentence"], row["token"]), n=user_history_length)
+        user_history = retriever(sample=row, n=user_history_length)
         user_history_str = ""
         for item in user_history:
             score_str = LABEL_NAMES[round(item["complexity"] * 4)]
