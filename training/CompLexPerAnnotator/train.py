@@ -8,7 +8,7 @@ from datasets import DatasetDict
 from CompLexPerAnnotator.schema import TrainingConfig, TrainingRun, Metrics, RetrieverType
 from CompLexPerAnnotator.data import tokenize_per_annotator_dataset, get_user_histories
 from CompLexPerAnnotator.model import create_trainer_per_annotator, create_base_model, apply_lora
-from CompLexPerAnnotator.retriever import RandomRetriever, WordFrequencyRetriever, Retriever
+from CompLexPerAnnotator.retriever import RandomRetriever, WordFrequencyRetriever, Retriever, CorpusRetriever
 
 def get_trainable_params(model: Any) -> tuple[int, int]:
     """
@@ -160,6 +160,8 @@ def get_retriever(retriever_type: RetrieverType, history: list) -> Retriever:
             return RandomRetriever(history=history)
         case RetrieverType.WORD_FREQUENCY:
             return WordFrequencyRetriever(history=history)
+        case RetrieverType.CORPUS:
+            return CorpusRetriever(history=history) 
         case _:
             raise NotImplementedError(f"No Retriever implemented for {retriever_type}")
 

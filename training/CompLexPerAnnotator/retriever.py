@@ -38,3 +38,14 @@ class WordFrequencyRetriever:
             key=lambda i: abs(self._freqs[i] - query_freq),
         )
         return [self.history[i] for i in ranked[:min(n, len(self.history))]]
+
+class CorpusRetriever:
+    def __init__(self, history: list, seed: int = None):
+        self.history = history
+        self.rng = np.random.default_rng(seed)
+
+    def __call__(self, sample: dict, n: int) -> list:
+        same_corpus_history = [item for item in self.history if item["corpus"] == sample["corpus"]]
+        indices = self.rng.choice(len(same_corpus_history), size=min(n, len(same_corpus_history)), replace=False)
+        return [same_corpus_history[i] for i in indices]
+

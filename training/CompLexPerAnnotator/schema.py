@@ -5,6 +5,7 @@ from enum import IntEnum
 class RetrieverType(IntEnum):
     RANDOM = 1
     WORD_FREQUENCY = 2
+    CORPUS = 3
 
 class TrainingConfig(BaseModel):
     rank: int # lora rank (higher rank -> higher parameter count)
