@@ -81,6 +81,10 @@ def load_dataset(cache_dir: str = "./data/per_annotator", test_size: float = 0.2
     df = select_columns(raw)
     df = map_labels(df)
 
+    before = len(df)
+    df = df[~df["token"].str.contains(r"\s", regex=True, na=False)].reset_index(drop=True)
+    print(f"Rows after filtering MWEs: {len(df):,} ({before - len(df):,} dropped)")
+
     train_df = df.sample(frac=1 - test_size, random_state=seed)
     test_df = df.drop(train_df.index).reset_index(drop=True)
     train_df = train_df.reset_index(drop=True)
