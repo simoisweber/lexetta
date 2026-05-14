@@ -49,8 +49,8 @@ def run_inference(model, tokenizer, dataset, config, retriever_type) -> tuple[np
     print(f"Built {retriever_type.name} retrievers for {len(retriever_map)} annotators")
 
     print("Tokenizing test set...")
-    tokenized = tokenize_per_annotator_dataset(
-        dataset, tokenizer=tokenizer,
+    tokenized_test = tokenize_per_annotator_dataset(
+        dataset["test"], tokenizer=tokenizer,
         retriever_map=retriever_map,
         user_history_length=config.user_history_length,
     )
@@ -61,7 +61,7 @@ def run_inference(model, tokenizer, dataset, config, retriever_type) -> tuple[np
     )
 
     print("Running inference...")
-    output = trainer.predict(tokenized["test"])
+    output = trainer.predict(tokenized_test)
     preds = output.predictions.squeeze()
     labels = output.label_ids
     annotator_ids = np.array(dataset["test"]["annotator_id"])

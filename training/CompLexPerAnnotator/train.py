@@ -118,14 +118,16 @@ def run_single_training(
 
     # Tokenize
     print("Tokenizing dataset...")
-    tokenized_dataset = tokenize_per_annotator_dataset(dataset, tokenizer=tokenizer, retriever_map=retriever_map, user_history_length=config.user_history_length)
+    tokenize_kwargs = dict(tokenizer=tokenizer, retriever_map=retriever_map, user_history_length=config.user_history_length)
+    tokenized_train = tokenize_per_annotator_dataset(dataset["train"], **tokenize_kwargs)
+    tokenized_test = tokenize_per_annotator_dataset(dataset["test"], **tokenize_kwargs)
 
     # Train
     trainer = create_trainer_per_annotator(
         model=model,
         config=config,
-        train_dataset=tokenized_dataset["train"],
-        eval_dataset=tokenized_dataset["test"],
+        train_dataset=tokenized_train,
+        eval_dataset=tokenized_test,
         output_dir=output_dir,
     )
 
@@ -247,8 +249,8 @@ def evaluate_model(
     print(f"Built {retriever_type.name} retrievers for {len(retriever_map)} annotators")
 
     print("Tokenizing test set...")
-    tokenized = tokenize_per_annotator_dataset(
-        dataset, tokenizer=tokenizer,
+    tokenized_test = tokenize_per_annotator_dataset(
+        dataset["test"], tokenizer=tokenizer,
         retriever_map=retriever_map,
         user_history_length=config.user_history_length,
     )
@@ -259,7 +261,7 @@ def evaluate_model(
     )
 
     print("Running inference...")
-    output = trainer.predict(tokenized["test"])
+    output = trainer.predict(tokenized_test)
     preds = output.predictions.squeeze()
     annotator_ids = dataset["test"]["annotator_id"]
     return compute_eval_metrics(preds, output.label_ids, annotator_ids)

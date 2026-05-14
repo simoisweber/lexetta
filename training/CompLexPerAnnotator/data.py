@@ -161,11 +161,11 @@ def load_dataset(cache_dir: str = "./data/per_annotator", test_size: float = 0.2
     return split_dataset(df, test_size=test_size, seed=seed)
 
 def tokenize_per_annotator_dataset(
-        dataset: DatasetDict,
+        dataset: Dataset,
         tokenizer: PreTrainedTokenizerBase,
         retriever_map: dict[str, Retriever],
         user_history_length: int = 5
-    ):
+    ) -> Dataset:
     """
     Tokenize the CompLex dataset for sequence classification.
 
@@ -175,12 +175,12 @@ def tokenize_per_annotator_dataset(
     Very Easy, Easy, ..., Very Difficult
 
     Params:
-        dataset: DatasetDict with 'train' and 'test' splits
+        dataset: Dataset split to tokenize
         tokenizer: Tokenizer to use
         retriever_map: mapping of annotator_id -> Retriever. The retriever is used to select the relevant items from the user history
         user_history_length: number of items of the user history that should be inside the prompt
     Returns:
-        Tokenized DatasetDict formatted as torch tensors
+        Tokenized Dataset formatted as torch tensors
     """
 
     def tokenize(row):
@@ -199,18 +199,17 @@ def tokenize_per_annotator_dataset(
             user_history_str,
             f"{context} {token}",
             padding="max_length",
-            truncation="only_first", 
+            truncation="only_first",
             max_length=512,
             return_token_type_ids=True,
         )
-    
+
     dataset = dataset.map(tokenize, batched=False)
     dataset = dataset.remove_columns(["annotator_id", "task_id", "corpus", "sentence", "token"])
-    dataset["train"] = dataset["train"].rename_column("complexity", "labels") # the trainer expects labels
-    dataset["test"] = dataset["test"].rename_column("complexity", "labels") # the trainer expects labels
+    dataset = dataset.rename_column("complexity", "labels") # the trainer expects labels
     dataset.set_format("torch")
-    
-    return dataset 
+
+    return dataset
 
 
 def get_user_histories(dataset: DatasetDict) -> dict[str, list[dict]]:
