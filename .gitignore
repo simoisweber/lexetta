@@ -3,3 +3,5 @@ data/
 outputs/
 .vscode/
 configs/
+results/
+notebooks/
