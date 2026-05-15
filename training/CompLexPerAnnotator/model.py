@@ -57,6 +57,7 @@ def create_trainer_per_annotator(
     config: TrainingConfig,
     train_dataset: Any,
     eval_dataset: Any,
+    eval_annotator_ids: list = None,
     output_dir: str = None,
 ) -> Trainer:
     """
@@ -77,8 +78,16 @@ def create_trainer_per_annotator(
     def compute_metrics(eval_pred):
         preds, labels = eval_pred
         preds = preds.squeeze()  # (batch, 1) -> (batch,)
-        overall_r, mean_per_annotator_r = compute_eval_metrics(preds, labels)
-        return {"pearson_r": overall_r, "mean_per_annotator_pearson_r": mean_per_annotator_r}
+        overall_r, per_annotator_dict = compute_eval_metrics(preds, labels, annotator_ids=eval_annotator_ids)
+        mean_per_annotator_r = (
+            sum(per_annotator_dict.values()) / len(per_annotator_dict)
+            if per_annotator_dict else float("nan")
+        )
+        return {
+            "pearson_r": overall_r,
+            "mean_per_annotator_pearson_r": mean_per_annotator_r,
+            "per_annotator_pearson_r": per_annotator_dict,
+        }
 
     training_args = TrainingArguments(
         output_dir=output_dir,

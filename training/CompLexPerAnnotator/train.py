@@ -129,6 +129,7 @@ def run_single_training(
         config=config,
         train_dataset=tokenized_train,
         eval_dataset=tokenized_val,
+        eval_annotator_ids=dataset["validation"]["annotator_id"],
         output_dir=output_dir,
     )
 
