@@ -3,7 +3,7 @@ import time
 from typing import Any
 from pathlib import Path
 from scipy import stats
-from transformers import Trainer, TrainingArguments
+from transformers import Trainer
 from datasets import DatasetDict
 
 from CompLexPerAnnotator.schema import TrainingConfig, TrainingRun, Metrics, RetrieverType
@@ -211,59 +211,4 @@ def compute_eval_metrics(preds, labels, annotator_ids=None) -> tuple[float, dict
             per_annotator_r[aid] = float(r)
     return float(overall_r), per_annotator_r
 
-
-def evaluate_model(
-    model,
-    tokenizer,
-    dataset: DatasetDict,
-    config,
-    retriever_type: RetrieverType | None = None,
-) -> tuple[float, dict[str, float]]:
-    """
-    Full evaluation pipeline for a loaded model.
-
-    Builds retrievers, tokenizes the dataset, runs inference, and returns both
-    Pearson r metrics. Use this when you need to evaluate a model from scratch
-    (e.g. in the standalone eval script).
-
-    Note: because RandomRetriever / CorpusRetriever are non-deterministic, results
-    may differ slightly from training-time eval which used a fixed tokenized dataset.
-    For exact reproducibility during training use compute_eval_metrics directly on
-    the already-tokenized test split.
-
-    Args:
-        model: Trained model
-        tokenizer: Tokenizer matching the model
-        dataset: Raw (untokenized) DatasetDict with 'train', 'validation', and 'test' splits
-        config: TrainingConfig used during training
-        retriever_type: Override the retriever type from config (optional)
-
-    Returns:
-        Tuple of (overall_pearson_r, per_annotator_pearson_r_list)
-    """
-    retriever_type = retriever_type or config.retriever_type
-    user_histories = get_user_histories(dataset)
-    retriever_map = {
-        aid: get_retriever(retriever_type, history)
-        for aid, history in user_histories.items()
-    }
-    print(f"Built {retriever_type.name} retrievers for {len(retriever_map)} annotators")
-
-    print("Tokenizing test set...")
-    tokenized_test = tokenize_per_annotator_dataset(
-        dataset["test"], tokenizer=tokenizer,
-        retriever_map=retriever_map,
-        user_history_length=config.user_history_length,
-    )
-
-    trainer = Trainer(
-        model=model,
-        args=TrainingArguments(output_dir="/tmp/eval", per_device_eval_batch_size=16, report_to="none"),
-    )
-
-    print("Running inference...")
-    output = trainer.predict(tokenized_test)
-    preds = output.predictions.squeeze()
-    annotator_ids = dataset["test"]["annotator_id"]
-    return compute_eval_metrics(preds, output.label_ids, annotator_ids)
 
