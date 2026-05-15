@@ -4,7 +4,7 @@ from pathlib import Path
 
 from CompLexPerAnnotator.data import load_dataset
 from CompLexPerAnnotator.model import load_trained
-from CompLexPerAnnotator.schema import TrainingConfig, RetrieverType
+from CompLexPerAnnotator.schema import TrainingConfig
 from CompLexPerAnnotator.train import evaluate_model
 
 
@@ -12,16 +12,6 @@ def main():
     parser = argparse.ArgumentParser(description="Evaluate a per-annotator model")
     parser.add_argument("path", help="Run directory of the trained per-annotator model")
     parser.add_argument("output_dir", help="Directory to save results (must not already exist)")
-    # These must match what was used during training. load_dataset() defaults are seed=42, test_size=0.2.
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--test-size", type=float, default=0.2)
-    parser.add_argument(
-        "--retriever",
-        type=int,
-        choices=[r.value for r in RetrieverType],
-        default=None,
-        help=f"Override the retriever type from the training config. {', '.join(f'{r.value}={r.name}' for r in RetrieverType)}",
-    )
     args = parser.parse_args()
 
     run_dir = Path(args.path)
@@ -35,14 +25,12 @@ def main():
         config = TrainingConfig.model_validate_json(f.read())
 
     print("Loading dataset...")
-    dataset = load_dataset(seed=args.seed, test_size=args.test_size)
+    dataset = load_dataset(seed=config.seed, test_size=config.test_split)
 
     print("Loading model...")
     model, tokenizer = load_trained(str(run_dir / "model"))
 
-    retriever_type = RetrieverType(args.retriever) if args.retriever else None
-
-    overall_r, per_annotator_r = evaluate_model(model, tokenizer, dataset, config, retriever_type=retriever_type)
+    overall_r, per_annotator_r = evaluate_model(model, tokenizer, dataset, config, retriever_type=config.retriever_type)
     print(f"Overall Pearson r: {overall_r:.4f}")
     for aid, r in per_annotator_r.items():
         print(f"  {aid}: {r:.4f}")
@@ -51,9 +39,6 @@ def main():
     results = {
         "args": {
             "path": str(run_dir),
-            "seed": args.seed,
-            "test_size": args.test_size,
-            "retriever": args.retriever,
         },
         "overall_pearson_r": overall_r,
         "per_annotator_pearson_r": per_annotator_r,
