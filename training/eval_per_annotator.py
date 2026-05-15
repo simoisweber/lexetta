@@ -108,10 +108,7 @@ def main():
 
     output_dir.mkdir(parents=True)
     results = {
-        "args": {
-            "path": str(run_dir),
-            "split": args.split,
-        },
+        "config": config.model_dump(),
         "overall_pearson_r": overall_r,
         "per_annotator_pearson_r": per_annotator_r,
     }
