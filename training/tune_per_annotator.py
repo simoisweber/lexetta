@@ -28,6 +28,7 @@ def objective(config):
 
     data = load_dataset(
         cache_dir=str(PROJECT_ROOT / "data" / "per_annotator"),
+        val_size=training_config.val_split,
         test_size=training_config.test_split,
         seed=training_config.seed,
     )
@@ -48,7 +49,7 @@ def objective(config):
             "eval_mean_per_annotator_pearson_r", float("nan")
         ),
         "final_train_loss": run.metrics.final_train_loss,
-        "final_test_loss": run.metrics.final_test_loss,
+        "final_eval_loss": run.metrics.final_eval_loss,
         "train_time_s": run.metrics.train_time_s,
         "peak_vram_mb": run.metrics.peak_vram_mb,
     }
@@ -69,6 +70,8 @@ search_space = {
     "batch_size": 8,
 }
 
+# eval_pearson_r / eval_mean_per_annotator_pearson_r come from the Trainer's
+# per-epoch eval on the validation split (test stays held out for final eval).
 METRIC = "mean_per_annotator_pearson_r"
 MODE = "max"
 

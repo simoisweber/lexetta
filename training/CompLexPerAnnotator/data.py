@@ -77,20 +77,22 @@ def map_labels(df):
     print(f"Rows after label mapping: {len(df):,} ({before - len(df):,} dropped)")
     return df
 
-def split_dataset(df, test_size: float, seed: int, n_buckets: int = 5) -> DatasetDict:
+def split_dataset(df, val_size: float, test_size: float, seed: int, n_buckets: int = 5) -> DatasetDict:
     """
-    Splits the dataset into train and test users
+    Splits the dataset into train, validation, and test users
 
-    Bucket users by history length and split proportionally within each bucket
+    Bucket users by history length and split proportionally within each bucket.
+    Splits are user-disjoint: every annotator appears in exactly one split.
 
     Params:
         df: pandas Dataframe
+        val_size: ratio of users used for validation
         test_size: ratio of users used for testing
         seed: Random seed for reproduceability
         n_buckets: number of history-length quantile buckets
 
     Returns:
-        DatasetDict with 'train' and 'test' splits
+        DatasetDict with 'train', 'validation', and 'test' splits
     """
     user_counts = df.groupby("annotator_id").size().reset_index(name="count")
     user_counts["bucket"] = pd.qcut(
@@ -104,16 +106,30 @@ def split_dataset(df, test_size: float, seed: int, n_buckets: int = 5) -> Datase
     )
     test_user_ids = set(test_users)
 
-    train_df = df[~df["annotator_id"].isin(test_user_ids)].reset_index(drop=True)
+    # Sample validation users from the remainder of each bucket. Using seed+1
+    # keeps the test sample stable when only val_size changes.
+    remaining = user_counts[~user_counts["annotator_id"].isin(test_user_ids)]
+    val_frac = val_size / (1 - test_size)
+    val_users = (
+        remaining
+        .groupby("bucket", group_keys=False)["annotator_id"]
+        .apply(lambda s: s.sample(frac=val_frac, random_state=seed + 1))
+    )
+    val_user_ids = set(val_users)
+
+    train_df = df[~df["annotator_id"].isin(test_user_ids | val_user_ids)].reset_index(drop=True)
+    val_df = df[df["annotator_id"].isin(val_user_ids)].reset_index(drop=True)
     test_df = df[df["annotator_id"].isin(test_user_ids)].reset_index(drop=True)
 
     print(
         f"Train: {len(train_df):,} rows from {train_df['annotator_id'].nunique()} users | "
-        f"Test: {len(test_df):,} rows from {test_df['annotator_id'].nunique()} users"
+        f"Val:   {len(val_df):,} rows from {val_df['annotator_id'].nunique()} users | "
+        f"Test:  {len(test_df):,} rows from {test_df['annotator_id'].nunique()} users"
     )
 
     return DatasetDict({
         "train": Dataset.from_pandas(train_df, preserve_index=False),
+        "validation": Dataset.from_pandas(val_df, preserve_index=False),
         "test": Dataset.from_pandas(test_df, preserve_index=False),
     })
 
@@ -145,7 +161,12 @@ def download_dataset(cache_dir: str) -> str:
     return local_path
 
 
-def load_dataset(cache_dir: str = "./data/per_annotator", test_size: float = 0.2, seed: int = 42) -> DatasetDict:
+def load_dataset(
+    cache_dir: str = "./data/per_annotator",
+    val_size: float = 0.15,
+    test_size: float = 0.15,
+    seed: int = 42,
+) -> DatasetDict:
     """
     Load the per-annotator lexical complexity dataset as a Hugging Face DatasetDict.
 
@@ -153,11 +174,12 @@ def load_dataset(cache_dir: str = "./data/per_annotator", test_size: float = 0.2
 
     Params:
         cache_dir: Directory to save/load the dataset file
-        test_size: Fraction of data to use as test set
+        val_size: Fraction of users to use as validation set
+        test_size: Fraction of users to use as test set
         seed: Random seed for reproducibility
 
     Returns:
-        DatasetDict with keys 'train' and 'test'
+        DatasetDict with keys 'train', 'validation', and 'test'
     """
     local_path = download_dataset(cache_dir)
 
@@ -168,7 +190,7 @@ def load_dataset(cache_dir: str = "./data/per_annotator", test_size: float = 0.2
     df = filter_missing(df)
     df = filter_annotators_less_than(df, annotations=10)
 
-    return split_dataset(df, test_size=test_size, seed=seed)
+    return split_dataset(df, val_size=val_size, test_size=test_size, seed=seed)
 
 def tokenize_per_annotator_dataset(
         dataset: Dataset,
@@ -227,7 +249,7 @@ def get_user_histories(dataset: DatasetDict) -> dict[str, list[dict]]:
     Build a per-annotator history from the dataset.
 
     Params:
-        dataset: DatasetDict with 'train' and 'test' splits
+        dataset: DatasetDict with 'train', 'validation', and 'test' splits
 
     Returns:
         Dict mapping annotator_id -> list of row dicts (keys: task_id, annotator_id, corpus, sentence, token, complexity)

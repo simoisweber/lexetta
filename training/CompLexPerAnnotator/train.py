@@ -120,14 +120,15 @@ def run_single_training(
     print("Tokenizing dataset...")
     tokenize_kwargs = dict(tokenizer=tokenizer, retriever_map=retriever_map, user_history_length=config.user_history_length)
     tokenized_train = tokenize_per_annotator_dataset(dataset["train"], **tokenize_kwargs)
-    tokenized_test = tokenize_per_annotator_dataset(dataset["test"], **tokenize_kwargs)
+    tokenized_val = tokenize_per_annotator_dataset(dataset["validation"], **tokenize_kwargs)
 
-    # Train
+    # Train. Trainer's eval runs on validation each epoch; the test split is
+    # held out for final evaluation in the standalone eval scripts.
     trainer = create_trainer_per_annotator(
         model=model,
         config=config,
         train_dataset=tokenized_train,
-        eval_dataset=tokenized_test,
+        eval_dataset=tokenized_val,
         output_dir=output_dir,
     )
 
@@ -149,16 +150,16 @@ def run_single_training(
         peak_vram_mb=peak_vram,
         params_trainable=trainable,
         params_total=total,
-        final_test_loss=final_eval_loss,
+        final_eval_loss=final_eval_loss,
         final_train_loss=final_train_loss,
         logs=logs,
     )
-    
+
     result = TrainingRun(
         config=config,
         metrics=metrics,
-        version="1"
-    )    
+        version="2"
+    )
     return trainer, result
 
 def get_retriever(retriever_type: RetrieverType, history: list) -> Retriever:
@@ -233,7 +234,7 @@ def evaluate_model(
     Args:
         model: Trained model
         tokenizer: Tokenizer matching the model
-        dataset: Raw (untokenized) DatasetDict with 'train' and 'test' splits
+        dataset: Raw (untokenized) DatasetDict with 'train', 'validation', and 'test' splits
         config: TrainingConfig used during training
         retriever_type: Override the retriever type from config (optional)
 

@@ -26,7 +26,7 @@ from transformers import Trainer, TrainingArguments
 
 from CompLexPerAnnotator.data import load_dataset, tokenize_per_annotator_dataset, get_user_histories
 from CompLexPerAnnotator.model import load_trained
-from CompLexPerAnnotator.schema import TrainingConfig, RetrieverType
+from CompLexPerAnnotator.schema import TrainingConfig
 from CompLexPerAnnotator.train import get_retriever
 
 
@@ -92,9 +92,6 @@ def permute_within_task(preds: np.ndarray, task_ids: np.ndarray, rng: np.random.
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("path", help="Run directory of the trained per-annotator model")
-    parser.add_argument("--seed", type=int, default=42, help="Dataset split seed (must match training)")
-    parser.add_argument("--test-size", type=float, default=0.2)
-    parser.add_argument("--retriever", type=int, choices=[r.value for r in RetrieverType], default=None)
     parser.add_argument("--num-permutations", type=int, default=1000)
     parser.add_argument("--perm-seed", type=int, default=0, help="Seed for the permutation RNG")
     args = parser.parse_args()
@@ -106,16 +103,14 @@ def main():
         config = TrainingConfig.model_validate_json(f.read())
 
     print("Loading dataset...")
-    dataset = load_dataset(seed=args.seed, test_size=args.test_size)
+    dataset = load_dataset(seed=config.seed, val_size=config.val_split, test_size=config.test_split)
 
     print("Loading model...")
     model, tokenizer = load_trained(str(run_dir / "model"))
     if torch.cuda.is_available():
         model = model.cuda()
 
-    retriever_type = RetrieverType(args.retriever) if args.retriever else config.retriever_type
-
-    preds, labels, annotator_ids, task_ids = run_inference(model, tokenizer, dataset, config, retriever_type)
+    preds, labels, annotator_ids, task_ids = run_inference(model, tokenizer, dataset, config, config.retriever_type)
 
     true_r = mean_per_annotator_r(preds, labels, annotator_ids)
     print(f"\nTrue mean per-annotator Pearson r: {true_r:.4f}")

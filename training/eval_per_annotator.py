@@ -25,7 +25,7 @@ def main():
         config = TrainingConfig.model_validate_json(f.read())
 
     print("Loading dataset...")
-    dataset = load_dataset(seed=config.seed, test_size=config.test_split)
+    dataset = load_dataset(seed=config.seed, val_size=config.val_split, test_size=config.test_split)
 
     print("Loading model...")
     model, tokenizer = load_trained(str(run_dir / "model"))

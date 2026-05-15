@@ -15,8 +15,9 @@ class TrainingConfig(BaseModel):
     
     retriever_type: RetrieverType
     user_history_length: int # maximum number of tokens as input
-    test_split: float = 0.2 # fraction of data to use for testing (e.g. 0.2 = 20%)
-    seed: int = 42 # random seed for reproducible train/test splits
+    val_split: float = 0.15 # fraction of users to use for validation
+    test_split: float = 0.15 # fraction of users to use for testing
+    seed: int = 42 # random seed for reproducible train/val/test splits
     num_epochs: int
     learning_rate: float
     batch_size: int # batch size during training, higher values allow higher learning rates but also increase vram usage
@@ -24,17 +25,17 @@ class TrainingConfig(BaseModel):
 
 class Metrics(BaseModel):
     train_time_s: float # time in seconds it took to train this model
-    peak_vram_mb: float 
+    peak_vram_mb: float
 
     params_trainable: int # number of trainable parameters
     params_total: int # number of parameters in total
 
     final_train_loss: float
-    final_test_loss: float
+    final_eval_loss: float # loss on the validation split
 
     logs: list[dict] # logs from trainer.state.log_history
 
 class TrainingRun(BaseModel):
     config: TrainingConfig
     metrics: Metrics
-    version: Literal["1"] 
+    version: Literal["2"]

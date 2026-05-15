@@ -24,7 +24,7 @@ output_dir.mkdir(parents=True)
 with open(output_dir / "config.json", "w") as f:
     f.write(config.model_dump_json(indent=4))
 
-data = load_dataset(test_size=config.test_split, seed=config.seed)
+data = load_dataset(val_size=config.val_split, test_size=config.test_split, seed=config.seed)
 
 trainer, run = run_single_training(
     config=config,
@@ -36,7 +36,7 @@ print(f"Training time:    {run.metrics.train_time_s:.1f}s")
 print(f"Peak VRAM:        {run.metrics.peak_vram_mb:.1f} MB")
 print(f"Trainable params: {run.metrics.params_trainable:,} / {run.metrics.params_total:,}")
 print(f"Train loss:       {run.metrics.final_train_loss:.4f}")
-print(f"Test loss:        {run.metrics.final_test_loss:.4f}")
+print(f"Eval loss:        {run.metrics.final_eval_loss:.4f}")
 
 save_results(run, output_dir / "result.json")
 trainer.save_model(str(output_dir / "model"))
