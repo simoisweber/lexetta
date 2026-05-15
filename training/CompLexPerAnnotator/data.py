@@ -55,6 +55,15 @@ def filter_missing(df):
     print(f"Rows after filtering missing values: {len(df):,} ({before - len(df):,} dropped)")
     return df
 
+def filter_annotators_less_than(df, annotations: int):
+    print(f"Filtering out annotators with < {annotations} annotations")
+    before = len(df)
+    counts = df.groupby("annotator_id").size()
+    keep = counts[counts >= annotations].index
+    df = df[df["annotator_id"].isin(keep)].reset_index(drop=True)
+    print(f"Rows after filtering annotators: {len(df):,} ({before - len(df):,} dropped)")
+    return df
+
 
 def map_labels(df):
     print("Mapping labels")
@@ -157,6 +166,7 @@ def load_dataset(cache_dir: str = "./data/per_annotator", test_size: float = 0.2
     df = map_labels(df)
     df = filter_mwes(df)
     df = filter_missing(df)
+    df = filter_annotators_less_than(df, annotations=10)
 
     return split_dataset(df, test_size=test_size, seed=seed)
 
