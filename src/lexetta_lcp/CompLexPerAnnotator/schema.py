@@ -26,6 +26,7 @@ class TrainingConfig(BaseModel):
     warmup_ratio: float = 0.0 # fraction of total training steps used for linear LR warmup; 0 disables warmup
     batch_size: int # batch size during training, higher values allow higher learning rates but also increase vram usage
     gradient_accumulation_steps: int = 4 # number of micro-batches accumulated before each optimizer step; effective batch size = batch_size * gradient_accumulation_steps
+    max_grad_norm: float = 1.0 # global L2 norm threshold for gradient clipping; gradients with larger norm are rescaled to this value before the optimizer step
 
 
 class Metrics(BaseModel):

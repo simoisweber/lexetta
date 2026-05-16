@@ -153,6 +153,7 @@ def create_trainer_per_annotator(
         num_train_epochs=config.num_epochs,
         learning_rate=config.learning_rate,
         warmup_ratio=config.warmup_ratio,
+        max_grad_norm=config.max_grad_norm,
         logging_steps=100,
     )
     
