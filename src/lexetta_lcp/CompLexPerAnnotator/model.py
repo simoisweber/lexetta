@@ -1,13 +1,50 @@
 
+from collections import defaultdict
 from typing import Any
 
-from transformers import AutoModelForSequenceClassification, Trainer, TrainingArguments, AutoTokenizer
-from peft import LoraConfig, get_peft_model, TaskType, PeftModel
+import numpy as np
 import torch
+from peft import LoraConfig, get_peft_model, TaskType, PeftModel
+from scipy import stats
+from transformers import AutoModelForSequenceClassification, Trainer, TrainingArguments, AutoTokenizer
 
 from lexetta_lcp.CompLexPerAnnotator.schema import TrainingConfig
 from lexetta_lcp.CompLexPerAnnotator.data import encode_batch, encode
-from lexetta_lcp.CompLexPerAnnotator.train import compute_eval_metrics
+
+
+def compute_eval_metrics(preds, labels, annotator_ids=None) -> tuple[float, dict[str, float]]:
+    """
+    Compute overall Pearson r and per-annotator Pearson r values.
+
+    Per-annotator r is computed only over annotators with >1 example and
+    non-zero variance in both predictions and labels (others are skipped to
+    keep the metric defined).
+
+    Args:
+        preds: Model predictions (1-D array, length N)
+        labels: Ground-truth labels (1-D array, length N)
+        annotator_ids: Annotator ID for each example (length N). If None,
+            per-annotator r is returned as an empty dict.
+
+    Returns:
+        Tuple of (overall_pearson_r, {annotator_id: pearson_r})
+    """
+    overall_r, _ = stats.pearsonr(preds, labels)
+
+    if annotator_ids is None:
+        return float(overall_r), {}
+
+    grouped: dict[str, tuple[list, list]] = defaultdict(lambda: ([], []))
+    for p, l, aid in zip(preds, labels, annotator_ids):
+        grouped[aid][0].append(float(p))
+        grouped[aid][1].append(float(l))
+
+    per_annotator_r = {}
+    for aid, (p, l) in grouped.items():
+        if len(p) > 1 and np.std(p) > 0 and np.std(l) > 0:
+            r, _ = stats.pearsonr(p, l)
+            per_annotator_r[aid] = float(r)
+    return float(overall_r), per_annotator_r
 
 def create_base_model(
     model_name: str = "bert-base-uncased",

@@ -2,7 +2,6 @@ import torch
 import time
 from typing import Any
 from pathlib import Path
-from scipy import stats
 from transformers import Trainer
 from datasets import DatasetDict
 
@@ -173,43 +172,5 @@ def get_retriever(retriever_type: RetrieverType, history: list) -> Retriever:
             return CorpusRetriever(history=history)
         case _:
             raise NotImplementedError(f"No Retriever implemented for {retriever_type}")
-
-
-def compute_eval_metrics(preds, labels, annotator_ids=None) -> tuple[float, dict[str, float]]:
-    """
-    Compute overall Pearson r and per-annotator Pearson r values.
-
-    Per-annotator r is computed only over annotators with >1 example and
-    non-zero variance in both predictions and labels (others are skipped to
-    keep the metric defined).
-
-    Args:
-        preds: Model predictions (1-D array, length N)
-        labels: Ground-truth labels (1-D array, length N)
-        annotator_ids: Annotator ID for each example (length N). If None,
-            per-annotator r is returned as an empty dict.
-
-    Returns:
-        Tuple of (overall_pearson_r, {annotator_id: pearson_r})
-    """
-    import numpy as np
-    from collections import defaultdict
-
-    overall_r, _ = stats.pearsonr(preds, labels)
-
-    if annotator_ids is None:
-        return float(overall_r), {}
-
-    grouped: dict[str, tuple[list, list]] = defaultdict(lambda: ([], []))
-    for p, l, aid in zip(preds, labels, annotator_ids):
-        grouped[aid][0].append(float(p))
-        grouped[aid][1].append(float(l))
-
-    per_annotator_r = {}
-    for aid, (p, l) in grouped.items():
-        if len(p) > 1 and np.std(p) > 0 and np.std(l) > 0:
-            r, _ = stats.pearsonr(p, l)
-            per_annotator_r[aid] = float(r)
-    return float(overall_r), per_annotator_r
 
 
