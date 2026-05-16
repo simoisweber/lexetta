@@ -192,6 +192,52 @@ def load_dataset(
 
     return split_dataset(df, val_size=val_size, test_size=test_size, seed=seed)
 
+def format_history(items: list[dict]) -> str:
+    """Format user history items as '<token>: <score>, ...' for inclusion in the prompt."""
+    return ", ".join(
+        f"{item['token']}: {LABEL_NAMES[round(item['complexity'] * 4)]}"
+        for item in items
+    )
+
+
+def encode(
+    tokenizer: PreTrainedTokenizerBase,
+    history_items: list[dict],
+    sentence: str,
+    token: str,
+) -> dict:
+    """
+    Encode a single example as [CLS] user history [SEP] sentence + token [SEP].
+    """
+    return tokenizer(
+        format_history(history_items),
+        f"{sentence} {token}",
+        padding="max_length",
+        truncation="only_first",
+        max_length=512,
+        return_token_type_ids=True,
+    )
+
+
+def encode_batch(
+    tokenizer: PreTrainedTokenizerBase,
+    history_items_batch: list[list[dict]],
+    sentences: list[str],
+    tokens: list[str],
+) -> dict:
+    """
+    Batched version of encode. Returns a dict of lists/tensors with a leading batch dim.
+    """
+    return tokenizer(
+        [format_history(items) for items in history_items_batch],
+        [f"{s} {t}" for s, t in zip(sentences, tokens)],
+        padding="max_length",
+        truncation="only_first",
+        max_length=512,
+        return_token_type_ids=True,
+    )
+
+
 def tokenize_per_annotator_dataset(
         dataset: Dataset,
         tokenizer: PreTrainedTokenizerBase,
@@ -218,23 +264,7 @@ def tokenize_per_annotator_dataset(
     def tokenize(row):
         retriever = retriever_map[row["annotator_id"]]
         user_history = retriever(sample=row, n=user_history_length)
-        user_history_str = ""
-        for item in user_history:
-            score_str = LABEL_NAMES[round(item["complexity"] * 4)]
-            user_history_str += f"{item['token']}: {score_str}, "
-        user_history_str = user_history_str.removesuffix(", ")
-
-        context = row["sentence"]
-        token = row["token"]
-
-        return tokenizer(
-            user_history_str,
-            f"{context} {token}",
-            padding="max_length",
-            truncation="only_first",
-            max_length=512,
-            return_token_type_ids=True,
-        )
+        return encode(tokenizer, user_history, row["sentence"], row["token"])
 
     dataset = dataset.map(tokenize, batched=False)
     dataset = dataset.remove_columns(["annotator_id", "task_id", "corpus", "sentence", "token"])

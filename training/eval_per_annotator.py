@@ -3,10 +3,10 @@ import json
 from pathlib import Path
 
 from datasets import DatasetDict
-from transformers import Trainer, TrainingArguments
+import torch
 
-from CompLexPerAnnotator.data import load_dataset, tokenize_per_annotator_dataset, get_user_histories
-from CompLexPerAnnotator.model import load_trained
+from CompLexPerAnnotator.data import load_dataset, get_user_histories
+from CompLexPerAnnotator.model import load_trained, predict_batch
 from CompLexPerAnnotator.schema import TrainingConfig, RetrieverType
 from CompLexPerAnnotator.train import get_retriever, compute_eval_metrics
 
@@ -21,10 +21,6 @@ def evaluate_model(
 ) -> tuple[float, dict[str, float]]:
     """
     Full evaluation pipeline for a loaded model.
-
-    Builds retrievers, tokenizes the dataset, runs inference, and returns both
-    Pearson r metrics. Use this when you need to evaluate a model from scratch
-    (e.g. in the standalone eval script).
 
     Note: because RandomRetriever / CorpusRetriever are non-deterministic, results
     may differ slightly from training-time eval which used a fixed tokenized dataset.
@@ -50,23 +46,21 @@ def evaluate_model(
     }
     print(f"Built {retriever_type.name} retrievers for {len(retriever_map)} annotators")
 
-    print(f"Tokenizing {split} set...")
-    tokenized = tokenize_per_annotator_dataset(
-        dataset[split], tokenizer=tokenizer,
-        retriever_map=retriever_map,
-        user_history_length=config.user_history_length,
-    )
+    split_ds = dataset[split]
+    sentences = split_ds["sentence"]
+    tokens = split_ds["token"]
+    annotator_ids = split_ds["annotator_id"]
+    labels = split_ds["complexity"]
 
-    trainer = Trainer(
-        model=model,
-        args=TrainingArguments(output_dir="/tmp/eval", per_device_eval_batch_size=16, report_to="none"),
-    )
+    print(f"Retrieving histories for {len(split_ds)} examples...")
+    histories = [
+        retriever_map[row["annotator_id"]](sample=row, n=config.user_history_length)
+        for row in split_ds
+    ]
 
     print("Running inference...")
-    output = trainer.predict(tokenized)
-    preds = output.predictions.squeeze()
-    annotator_ids = dataset[split]["annotator_id"]
-    return compute_eval_metrics(preds, output.label_ids, annotator_ids)
+    preds = predict_batch(model, tokenizer, sentences, tokens, histories)
+    return compute_eval_metrics(preds, labels, annotator_ids)
 
 
 def main():
@@ -96,6 +90,10 @@ def main():
 
     print("Loading model...")
     model, tokenizer = load_trained(str(run_dir / "model"))
+    if torch.cuda.is_available():
+        model = model.to("cuda")
+    else:
+        print("Warning: no GPU found!")
 
     overall_r, per_annotator_r = evaluate_model(
         model, tokenizer, dataset, config,

@@ -120,3 +120,69 @@ def load_trained(model_dir) -> tuple:
     base_model, tokenizer = create_base_model()
     model = PeftModel.from_pretrained(model=base_model, model_id=model_dir)
     return model, tokenizer
+
+
+@torch.no_grad()
+def predict(
+    model: Any,
+    tokenizer: Any,
+    sentence: str,
+    token: str,
+    user_history: list[dict],
+) -> float:
+    """
+    Predict lexical complexity for a single (sentence, token) pair given user history.
+
+    Params:
+        model: Trained model (e.g. from load_trained)
+        tokenizer: Tokenizer matching the model
+        sentence: The context sentence containing the target token
+        token: The target token whose complexity is being predicted
+        user_history: Already-retrieved list of history items to include in the
+            prompt. Each item must have 'token' and 'complexity' (0..1) keys.
+            The caller is responsible for any selection/retrieval logic.
+
+    Returns:
+        Predicted complexity in [0, 1]
+    """
+    from CompLexPerAnnotator.data import encode
+
+    model.eval()
+    enc = encode(tokenizer, user_history, sentence, token)
+    inputs = {k: torch.tensor(v).unsqueeze(0).to(model.device) for k, v in enc.items()}
+    return model(**inputs).logits.squeeze().item()
+
+
+@torch.no_grad()
+def predict_batch(
+    model: Any,
+    tokenizer: Any,
+    sentences: list[str],
+    tokens: list[str],
+    user_histories: list[list[dict]],
+    batch_size: int = 16,
+) -> list[float]:
+    """
+    Batched version of predict. All three lists must have the same length.
+
+    Runs the forward pass in chunks of batch_size to bound GPU memory.
+
+    Returns:
+        List of predicted complexities in [0, 1], one per input.
+    """
+    from CompLexPerAnnotator.data import encode_batch
+    from tqdm.auto import tqdm
+
+    model.eval()
+    out: list[float] = []
+    for i in tqdm(range(0, len(sentences), batch_size), desc="Predicting", unit="batch"):
+        enc = encode_batch(
+            tokenizer,
+            user_histories[i : i + batch_size],
+            sentences[i : i + batch_size],
+            tokens[i : i + batch_size],
+        )
+        inputs = {k: torch.tensor(v).to(model.device) for k, v in enc.items()}
+        logits = model(**inputs).logits.squeeze(-1)
+        out.extend(logits.cpu().tolist())
+    return out
