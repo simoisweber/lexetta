@@ -29,6 +29,11 @@ dependencies = [
 dev = []
 
 [project.scripts]
+train-complex = "scripts.train_complex:main"
+train-per-annotator = "scripts.train_per_annotator:main"
+tune-per-annotator = "scripts.tune_per_annotator:main"
+eval-per-annotator = "scripts.eval_per_annotator:main"
+eval-permutation-test = "scripts.eval_permutation_test:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

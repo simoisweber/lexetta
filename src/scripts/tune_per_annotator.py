@@ -76,7 +76,7 @@ METRIC = "mean_per_annotator_pearson_r"
 MODE = "max"
 
 
-if __name__ == "__main__":
+def main():
     tuner = tune.Tuner(
         # 1 GPU per trial -- each trial trains a full model. Set to fractional
         # values (e.g. 0.5) only if multiple trials can share a GPU.
@@ -100,3 +100,7 @@ if __name__ == "__main__":
     print(f"config:  {best.config}")
     print(f"metrics: {best.metrics}")
     print(f"path:    {best.path}")
+
+
+if __name__ == "__main__":
+    main()
