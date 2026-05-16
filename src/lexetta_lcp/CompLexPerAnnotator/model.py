@@ -6,7 +6,8 @@ from peft import LoraConfig, get_peft_model, TaskType, PeftModel
 import torch
 
 from lexetta_lcp.CompLexPerAnnotator.schema import TrainingConfig
-from lexetta_lcp.CompLexPerAnnotator.data import encode_batch
+from lexetta_lcp.CompLexPerAnnotator.data import encode_batch, encode
+from lexetta_lcp.CompLexPerAnnotator.train import compute_eval_metrics
 
 def create_base_model(
     model_name: str = "bert-base-uncased",
@@ -73,7 +74,6 @@ def create_trainer_per_annotator(
     Returns:
         Configured Trainer instance
     """
-    from CompLexPerAnnotator.train import compute_eval_metrics
 
     def compute_metrics(eval_pred):
         preds, labels = eval_pred
@@ -145,8 +145,6 @@ def predict(
     Returns:
         Predicted complexity in [0, 1]
     """
-    from CompLexPerAnnotator.data import encode
-
     model.eval()
     enc = encode(tokenizer, user_history, sentence, token)
     inputs = {k: torch.tensor(v).unsqueeze(0).to(model.device) for k, v in enc.items()}
