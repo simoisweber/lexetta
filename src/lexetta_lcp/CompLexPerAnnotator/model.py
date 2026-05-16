@@ -6,7 +6,7 @@ from peft import LoraConfig, get_peft_model, TaskType, PeftModel
 import torch
 
 from lexetta_lcp.CompLexPerAnnotator.schema import TrainingConfig
-
+from lexetta_lcp.CompLexPerAnnotator.data import encode_batch
 
 def create_base_model(
     model_name: str = "bert-base-uncased",
@@ -170,7 +170,6 @@ def predict_batch(
     Returns:
         List of predicted complexities in [0, 1], one per input.
     """
-    from CompLexPerAnnotator.data import encode_batch
     from tqdm.auto import tqdm
 
     model.eval()
