@@ -271,7 +271,7 @@ def encode(
     return tokenizer(
         format_history(history_items),
         f"{sentence} {token}",
-        truncation="only_first",
+        truncation=True,
         max_length=max_length,
         return_token_type_ids=True,
     )
@@ -302,7 +302,7 @@ def encode_batch(
         [format_history(items) for items in history_items_batch],
         [f"{s} {t}" for s, t in zip(sentences, tokens)],
         padding="longest",
-        truncation="only_first",
+        truncation=True,
         max_length=max_length,
         return_token_type_ids=True,
     )
